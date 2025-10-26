@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Study Generator</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="header-content">
+                <div class="logo-text">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        <line x1="12" y1="6" x2="12" y2="18"></line>
+                        <line x1="8" y1="10" x2="16" y2="10"></line>
+                    </svg>
+                    <h1>Bible Study Generator</h1>
+                </div>
+                <div class="user-info">
+                    {% if user %}
+                    <img src="{{ user.picture }}" alt="Profile" class="user-avatar">
+                    <span>{{ user.name }}</span>
+                    <a href="/auth/logout" class="logout-btn">Logout</a>
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="form-container">
+                <h2>Generate Bible Study Guide</h2>
+                <p class="description">Select sermon transcripts from Google Drive to create a comprehensive study guide</p>
+
+                <form id="generateForm">
+                    <div class="form-group">
+                        <label for="seriesTitle">Series Title *</label>
+                        <input
+                            type="text"
+                            id="seriesTitle"
+                            name="series_title"
+                            required
+                            placeholder="e.g., Walking in Faith"
+                            maxlength="100"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="targetAudience">Target Audience *</label>
+                        <select id="targetAudience" name="target_audience" required>
+                            <option value="">Select audience...</option>
+                            <option value="New Christians">New Christians</option>
+                            <option value="Mature Believers">Mature Believers</option>
+                            <option value="Mixed">Mixed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="model">AI Model *</label>
+                        <select id="model" name="model" required>
+                            <option value="claude-sonnet-4.5">Claude Sonnet 4.5 (Recommended - Best Quality)</option>
+                            <option value="claude-3.5-haiku">Claude 3.5 Haiku (Faster, Lower Cost)</option>
+                            <option value="gpt-4o">GPT-4o (Alternative Option)</option>
+                        </select>
+                        <small class="form-help">For testing: Use Haiku to save costs. For production: Use Sonnet 4.5 for best quality.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sermon Transcripts * (Max 8 files)</label>
+                        <button type="button" id="pickerButton" class="picker-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Select .txt files from Google Drive
+                        </button>
+                        <div id="selectedFiles" class="selected-files"></div>
+                        <input type="hidden" id="fileIds" name="file_ids" required>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="generateBtn" class="generate-btn" disabled>
+                            Generate Study Guide
+                        </button>
+                    </div>
+
+                    <p class="generation-note">
+                        <strong>Note:</strong> Generation may take 5-15 minutes depending on the number of sermons.
+                        Please keep this page open during generation.
+                    </p>
+                </form>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <h3>Generating Study Guide</h3>
+                <p>Please wait while we create your comprehensive Bible study guide...</p>
+                <p class="loading-detail">This may take 5-15 minutes</p>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div id="successModal" class="modal hidden">
+            <div class="modal-content success">
+                <div class="modal-icon success-icon">✓</div>
+                <h3>Study Guide Generated Successfully!</h3>
+                <p>Your study guide has been saved to Google Drive.</p>
+                <div class="modal-actions">
+                    <a id="driveLink" href="#" target="_blank" class="btn-primary">Open in Google Drive</a>
+                    <button onclick="closeModal()" class="btn-secondary">Create Another</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Modal -->
+        <div id="errorModal" class="modal hidden">
+            <div class="modal-content error">
+                <div class="modal-icon error-icon">✕</div>
+                <h3>Generation Failed</h3>
+                <p id="errorMessage">An error occurred during generation.</p>
+                <div class="modal-actions">
+                    <button onclick="closeModal()" class="btn-primary">Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Store Google Client ID from backend
+        const GOOGLE_CLIENT_ID = "{{ google_client_id }}";
+        const GOOGLE_API_KEY = "{{ google_api_key }}";
+    </script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
