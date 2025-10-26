@@ -5,6 +5,9 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
+# Allow OAuth over HTTP (Cloud Run terminates HTTPS, so internal traffic is HTTP)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 # OAuth2 configuration
 SCOPES = [
     'openid',
