@@ -55,6 +55,8 @@ async def oauth_login(request: Request):
 
 async def oauth_callback(request: Request):
     """Handle OAuth callback from Google"""
+    import warnings
+
     # Verify state
     state = request.session.get("oauth_state")
     if not state:
@@ -62,7 +64,11 @@ async def oauth_callback(request: Request):
 
     # Exchange authorization code for credentials
     flow = get_oauth_flow(request)
-    flow.fetch_token(authorization_response=str(request.url))
+
+    # Ignore scope change warnings (Google returns scopes in different order)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*Scope has changed.*")
+        flow.fetch_token(authorization_response=str(request.url))
 
     credentials = flow.credentials
 
