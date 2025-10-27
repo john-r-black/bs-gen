@@ -1,65 +1,59 @@
 // Global variables
 let selectedFiles = [];
 let pickerApiLoaded = false;
+let oauthToken;
 
 // Load Google Picker API
 function loadPicker() {
+    gapi.load('auth', {'callback': onAuthApiLoad});
     gapi.load('picker', {'callback': onPickerApiLoad});
+}
+
+function onAuthApiLoad() {
+    // Fetch access token from backend
+    fetch('/api/access-token')
+        .then(response => response.json())
+        .then(data => {
+            oauthToken = data.access_token;
+        })
+        .catch(error => {
+            console.error('Error loading auth:', error);
+        });
 }
 
 function onPickerApiLoad() {
     pickerApiLoaded = true;
 }
 
-// Get OAuth access token from backend
-async function getAccessToken() {
-    try {
-        const response = await fetch('/api/access-token');
-        const data = await response.json();
-        return data.access_token;
-    } catch (error) {
-        console.error('Error getting access token:', error);
-        alert('Failed to get access token. Please try logging in again.');
-        return null;
-    }
-}
-
 // Create and show Google Drive Picker
-async function createPicker() {
-    if (!pickerApiLoaded) {
-        alert('Google Picker is still loading. Please try again in a moment.');
-        return;
+function createPicker() {
+    if (pickerApiLoaded && oauthToken) {
+        const docsView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+            .setMimeTypes('text/plain')
+            .setSelectFolderEnabled(false);
+
+        const picker = new google.picker.PickerBuilder()
+            .addView(docsView)
+            .setOAuthToken(oauthToken)
+            .setDeveloperKey(GOOGLE_API_KEY)
+            .setCallback(pickerCallback)
+            .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+            .setTitle('Select Sermon Transcript Files (.txt)')
+            .build();
+        picker.setVisible(true);
+    } else {
+        alert('Picker API not ready. Please wait a moment and try again.');
     }
-
-    // Get access token from backend
-    const token = await getAccessToken();
-    if (!token) {
-        return;
-    }
-
-    // Create a view that shows folders and allows navigation
-    const docsView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(false)  // Don't allow selecting folders, only files
-        .setMode(google.picker.DocsViewMode.LIST);
-
-    const picker = new google.picker.PickerBuilder()
-        .addView(docsView)
-        .setOAuthToken(token)
-        .setDeveloperKey(GOOGLE_API_KEY)
-        .setCallback(pickerCallback)
-        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-        .setTitle('Select Sermon Transcript Files')
-        .build();
-    picker.setVisible(true);
 }
 
 // Handle file selection from Google Picker
 function pickerCallback(data) {
-    if (data.action === google.picker.Action.PICKED) {
-        selectedFiles = data.docs.map(doc => ({
-            id: doc.id,
-            name: doc.name
+    if (data[google.picker.Response.ACTION] == google.picker.Action.PICKED) {
+        const files = data[google.picker.Response.DOCUMENTS];
+        selectedFiles = files.map(file => ({
+            id: file[google.picker.Document.ID],
+            name: file[google.picker.Document.NAME],
+            mimeType: file[google.picker.Document.MIME_TYPE]
         }));
 
         // Sort files alphabetically (handles "## 01, 02..." pattern)
