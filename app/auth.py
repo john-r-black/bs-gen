@@ -8,6 +8,10 @@ from googleapiclient.discovery import build
 # Allow OAuth over HTTP (Cloud Run terminates HTTPS, so internal traffic is HTTP)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
+# Relax token scope validation (Google returns scopes in different order)
+# See: https://stackoverflow.com/questions/51499034/google-oauthlib-scope-has-changed
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+
 # OAuth2 configuration
 SCOPES = [
     'openid',
@@ -63,51 +67,11 @@ async def oauth_callback(request: Request):
     # Exchange authorization code for credentials
     flow = get_oauth_flow(request)
 
-    # Fetch token - oauthlib raises a Warning exception about scope reordering
-    # But the token IS successfully fetched before the warning is raised
-    try:
-        flow.fetch_token(authorization_response=str(request.url))
-    except Warning as w:
-        # Token was fetched successfully, just ignore scope order warning
-        if "Scope has changed" not in str(w):
-            raise  # Re-raise if it's a different warning
+    # Fetch token - OAUTHLIB_RELAX_TOKEN_SCOPE handles scope reordering automatically
+    flow.fetch_token(authorization_response=str(request.url))
 
-    # Build credentials manually from the token (since flow.credentials may fail after Warning)
-    from datetime import datetime, timedelta
-
-    token_data = flow.oauth2session.token
-
-    # Debug: Print token data keys
-    print(f"Token data keys: {token_data.keys()}")
-    print(f"Has refresh_token: {'refresh_token' in token_data}")
-    print(f"Access token exists: {bool(token_data.get('access_token'))}")
-
-    # Calculate expiry time if expires_in is provided
-    expiry = None
-    if 'expires_in' in token_data:
-        expiry = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
-    elif 'expires_at' in token_data:
-        expiry = datetime.utcfromtimestamp(token_data['expires_at'])
-
-    # Verify all required fields are present
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
-    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    access_token = token_data.get('access_token')
-    refresh_token = token_data.get('refresh_token')
-
-    if not all([client_id, client_secret, access_token]):
-        print(f"Missing fields - client_id: {bool(client_id)}, client_secret: {bool(client_secret)}, access_token: {bool(access_token)}, refresh_token: {bool(refresh_token)}")
-        raise HTTPException(status_code=500, detail="OAuth configuration incomplete")
-
-    credentials = Credentials(
-        token=access_token,
-        refresh_token=refresh_token,
-        token_uri='https://oauth2.googleapis.com/token',
-        client_id=client_id,
-        client_secret=client_secret,
-        scopes=token_data.get('scope', '').split() if isinstance(token_data.get('scope'), str) else SCOPES,
-        expiry=expiry
-    )
+    # Get credentials from flow (now works properly with relaxed scope validation)
+    credentials = flow.credentials
 
     # Get user info
     service = build('oauth2', 'v2', credentials=credentials)
