@@ -73,14 +73,25 @@ async def oauth_callback(request: Request):
             raise  # Re-raise if it's a different warning
 
     # Build credentials manually from the token (since flow.credentials may fail after Warning)
+    from datetime import datetime, timedelta
+
     token_data = flow.oauth2session.token
+
+    # Calculate expiry time if expires_in is provided
+    expiry = None
+    if 'expires_in' in token_data:
+        expiry = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
+    elif 'expires_at' in token_data:
+        expiry = datetime.utcfromtimestamp(token_data['expires_at'])
+
     credentials = Credentials(
         token=token_data.get('access_token'),
         refresh_token=token_data.get('refresh_token'),
         token_uri='https://oauth2.googleapis.com/token',
         client_id=os.getenv("GOOGLE_CLIENT_ID"),
         client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-        scopes=SCOPES
+        scopes=token_data.get('scope', '').split() if isinstance(token_data.get('scope'), str) else SCOPES,
+        expiry=expiry
     )
 
     # Get user info
