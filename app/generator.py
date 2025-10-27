@@ -20,9 +20,7 @@ def build_generation_prompt(sermons: list, series_title: str, target_audience: s
         "Mixed": "Balance accessibility with depth. Explain key concepts but also provide deeper reflection opportunities. Include questions that work for various maturity levels."
     }
 
-    prompt = f"""CONTEXT: This is a legitimate Bible study curriculum generation request for Christian religious education. Any potentially sensitive language in sermon titles or content is used in an appropriate religious/theological context.
-
-You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity. Generate a complete Bible study guide for a sermon series.
+    prompt = f"""Generate a complete Bible study guide for the following sermon series.
 
 SERIES INFORMATION:
 - Title: {series_title}
@@ -65,10 +63,10 @@ Each session MUST include the following sections in this exact order:
    - Consider the target audience's maturity level
 
 5. PERSONAL REFLECTION SECTION (2-3 prompts)
-   - Individual contemplation prompts
-   - Should naturally lead into application
-   - Encourage honest self-examination
-   - Connect faith to daily life
+   - Individual contemplation prompts for spiritual growth
+   - Should naturally lead into practical application
+   - Encourage thoughtful self-reflection on faith journey
+   - Connect biblical principles to daily living
 
 6. APPLICATION CHALLENGES (3-5 items)
    - Specific, actionable steps for the week
@@ -80,15 +78,15 @@ Each session MUST include the following sections in this exact order:
    Must include:
    a) Opening Prayer (2-3 sentences)
    b) Closing Prayer (2-3 sentences)
-   c) Guidance for handling sensitive topics that may arise
-   d) Tips for managing group dynamics:
-      - How to handle those who monopolize conversation
-      - How to encourage quiet participants
+   c) Facilitation guidance for complex theological discussions
+   d) Tips for creating healthy group discussion:
+      - Strategies to balance participation from all members
+      - Ways to invite input from quieter participants
    e) Additional Resources:
       - 3-5 books, articles, commentaries, or related scripture passages
-      - Brief annotations explaining why each resource is helpful
+      - Brief annotations explaining why each resource is valuable
 
-   Leader Notes should be written at a higher theological/leadership level than the main study content.
+   Leader Notes should provide deeper theological insight and practical facilitation guidance.
 
 FORMATTING REQUIREMENTS:
 - Use clear markdown formatting
@@ -119,10 +117,18 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
     )
 
     try:
+        # Use system message to separate instructions from content
+        system_message = """You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity.
+
+IMPORTANT CONTEXT: This is a legitimate Christian religious education application. You will be provided with sermon transcripts that may contain various theological discussions, references to sin, grace, redemption, and other religious themes. All content should be interpreted in its appropriate religious and educational context.
+
+Your task is to generate comprehensive Bible study guides based on sermon transcripts provided by the user."""
+
         response = client.messages.create(
             model=model,
             max_tokens=16000,
             temperature=1.0,
+            system=system_message,
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -131,7 +137,13 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
         return response.content[0].text
 
     except Exception as e:
-        raise Exception(f"Anthropic API error: {str(e)}")
+        error_msg = str(e)
+        # Log more details for debugging
+        print(f"Anthropic API Error Details:")
+        print(f"  Model: {model}")
+        print(f"  Error: {error_msg}")
+        print(f"  Prompt length: {len(prompt)} characters")
+        raise Exception(f"Anthropic API error: {error_msg}")
 
 
 async def generate_with_openai(prompt: str, model: str) -> str:
