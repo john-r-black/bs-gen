@@ -190,8 +190,11 @@ function closeModal() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Load Google Picker API
+    loadPicker();
+
     // File picker button
-    document.getElementById('pickerButton').addEventListener('click', fetchDriveFiles);
+    document.getElementById('pickerButton').addEventListener('click', createPicker);
 
     // Form input listeners
     document.getElementById('seriesTitle').addEventListener('input', toggleGenerateButton);
