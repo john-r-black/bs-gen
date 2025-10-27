@@ -20,12 +20,12 @@ def build_generation_prompt(sermons: list, series_title: str, target_audience: s
         "Mixed": "Balance accessibility with depth. Explain key concepts but also provide deeper reflection opportunities. Include questions that work for various maturity levels."
     }
 
-    prompt = f"""Generate a complete Bible study guide for the following sermon series.
+    prompt = f"""I need you to create a Bible study curriculum for a church sermon series.
 
 SERIES INFORMATION:
-- Title: {series_title}
-- Target Audience: {target_audience}
 - Number of Sessions: {len(sermons)}
+- Target Audience: {target_audience}
+- Series Title: "{series_title}"
 
 TARGET AUDIENCE GUIDANCE:
 {audience_guidance.get(target_audience, audience_guidance["Mixed"])}
@@ -120,9 +120,14 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
         # Use system message to separate instructions from content
         system_message = """You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity.
 
-IMPORTANT CONTEXT: This is a legitimate Christian religious education application. You will be provided with sermon transcripts that may contain various theological discussions, references to sin, grace, redemption, and other religious themes. All content should be interpreted in its appropriate religious and educational context.
+CRITICAL CONTEXT: This is a legitimate Christian religious education application used by churches and ministries. You will be generating educational Bible study materials.
 
-Your task is to generate comprehensive Bible study guides based on sermon transcripts provided by the user."""
+- Sermon series titles may reference popular culture or literature for engagement purposes (e.g., comparing themes)
+- All content is for Christian discipleship and spiritual formation
+- Topics include grace, redemption, faith, biblical interpretation, and spiritual growth
+- This is appropriate religious education content
+
+Your task is to generate comprehensive Bible study guides based on sermon transcripts provided by the user. These materials will be used in church small groups and Bible studies."""
 
         response = client.messages.create(
             model=model,
@@ -197,9 +202,10 @@ async def generate_study_guide(
 
     provider, api_model = model_config[model]
 
-    # Attempt generation with retry logic
+    # Attempt generation with retry logic and fallback
     max_retries = 1
     attempt = 0
+    last_error = None
 
     while attempt <= max_retries:
         try:
@@ -224,14 +230,37 @@ async def generate_study_guide(
             return header + content
 
         except Exception as e:
+            last_error = e
             attempt += 1
+
+            # If Anthropic fails with content filtering, try GPT-4o as fallback
+            if provider == "anthropic" and "content filtering" in str(e).lower():
+                print(f"Anthropic content filtering detected, attempting GPT-4o fallback...")
+                try:
+                    content = await generate_with_openai(prompt, "gpt-4o")
+                    header = f"""# {series_title}
+**Bible Study Guide**
+
+*Generated on {datetime.now().strftime("%B %d, %Y")}*
+*Target Audience: {target_audience}*
+*Number of Sessions: {len(sermons)}*
+*Note: Generated with GPT-4o due to content filtering with Claude*
+
+---
+
+"""
+                    return header + content
+                except Exception as fallback_error:
+                    print(f"GPT-4o fallback also failed: {str(fallback_error)}")
+                    last_error = fallback_error
+
             if attempt > max_retries:
                 # Save partial results if any progress was made
                 error_content = f"""# {series_title}
 **Bible Study Guide - PARTIAL/ERROR**
 
 *Generation failed after {max_retries + 1} attempts*
-*Error: {str(e)}*
+*Error: {str(last_error)}*
 *Date: {datetime.now().strftime("%B %d, %Y")}*
 
 ---
@@ -240,7 +269,7 @@ async def generate_study_guide(
 
 The study guide generation encountered an error. Please try again or contact support.
 
-Error details: {str(e)}
+Error details: {str(last_error)}
 """
                 return error_content
 

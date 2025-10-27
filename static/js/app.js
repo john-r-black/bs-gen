@@ -37,9 +37,14 @@ async function createPicker() {
         return;
     }
 
+    // Create a view that shows folders and allows navigation
+    const docsView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false)  // Don't allow selecting folders, only files
+        .setMode(google.picker.DocsViewMode.LIST);
+
     const picker = new google.picker.PickerBuilder()
-        .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
-            .setMode(google.picker.DocsViewMode.LIST))
+        .addView(docsView)
         .setOAuthToken(token)
         .setDeveloperKey(GOOGLE_API_KEY)
         .setCallback(pickerCallback)
