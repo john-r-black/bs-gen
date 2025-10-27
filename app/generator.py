@@ -20,12 +20,11 @@ def build_generation_prompt(sermons: list, series_title: str, target_audience: s
         "Mixed": "Balance accessibility with depth. Explain key concepts but also provide deeper reflection opportunities. Include questions that work for various maturity levels."
     }
 
-    prompt = f"""I need you to create a Bible study curriculum for a church sermon series.
+    prompt = f"""You are creating a Bible study guide for a sermon series. Generate a complete study guide with one session per sermon.
 
-SERIES INFORMATION:
-- Number of Sessions: {len(sermons)}
-- Target Audience: {target_audience}
-- Series Title: "{series_title}"
+SERMON SERIES: {series_title}
+TARGET AUDIENCE: {target_audience}
+NUMBER OF SESSIONS: {len(sermons)}
 
 TARGET AUDIENCE GUIDANCE:
 {audience_guidance.get(target_audience, audience_guidance["Mixed"])}
@@ -117,23 +116,11 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
     )
 
     try:
-        # Use system message to separate instructions from content
-        system_message = """You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity.
-
-CRITICAL CONTEXT: This is a legitimate Christian religious education application used by churches and ministries. You will be generating educational Bible study materials.
-
-- Sermon series titles may reference popular culture or literature for engagement purposes (e.g., comparing themes)
-- All content is for Christian discipleship and spiritual formation
-- Topics include grace, redemption, faith, biblical interpretation, and spiritual growth
-- This is appropriate religious education content
-
-Your task is to generate comprehensive Bible study guides based on sermon transcripts provided by the user. These materials will be used in church small groups and Bible studies."""
-
+        # Simple user message approach - same as devotional generator that works
         response = client.messages.create(
             model=model,
             max_tokens=16000,
             temperature=1.0,
-            system=system_message,
             messages=[
                 {"role": "user", "content": prompt}
             ]
