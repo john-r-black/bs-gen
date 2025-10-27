@@ -1,98 +1,75 @@
 // Global variables
 let selectedFiles = [];
-let allDriveFiles = [];
+let pickerApiLoaded = false;
 
-// Fetch .txt files from Google Drive
-async function fetchDriveFiles() {
+// Load Google Picker API
+function loadPicker() {
+    gapi.load('picker', {'callback': onPickerApiLoad});
+}
+
+function onPickerApiLoad() {
+    pickerApiLoaded = true;
+}
+
+// Get OAuth access token from backend
+async function getAccessToken() {
     try {
-        const response = await fetch('/api/list-files');
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            allDriveFiles = result.files;
-            showFileSelectionModal();
-        } else {
-            alert('Error loading files from Google Drive: ' + (result.detail || 'Unknown error'));
-        }
+        const response = await fetch('/api/access-token');
+        const data = await response.json();
+        return data.access_token;
     } catch (error) {
-        alert('Error loading files: ' + error.message);
+        console.error('Error getting access token:', error);
+        alert('Failed to get access token. Please try logging in again.');
+        return null;
     }
 }
 
-// Show custom file selection modal
-function showFileSelectionModal() {
-    if (allDriveFiles.length === 0) {
-        alert('No .txt files found in your Google Drive. Please upload sermon transcript files first.');
+// Create and show Google Drive Picker
+async function createPicker() {
+    if (!pickerApiLoaded) {
+        alert('Google Picker is still loading. Please try again in a moment.');
         return;
     }
 
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'filePickerModal';
+    // Get access token from backend
+    const token = await getAccessToken();
+    if (!token) {
+        return;
+    }
 
-    const fileList = allDriveFiles.map((file, index) => `
-        <div class="file-picker-item">
-            <input type="checkbox" id="file_${index}" value="${file.id}"
-                ${selectedFiles.some(f => f.id === file.id) ? 'checked' : ''}>
-            <label for="file_${index}">
-                <div class="file-name">${file.name}</div>
-                <div class="file-folder">${file.folderName || 'My Drive'}</div>
-            </label>
-        </div>
-    `).join('');
-
-    modal.innerHTML = `
-        <div class="modal-content file-picker">
-            <h3>Select Sermon Transcript Files</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Select up to 8 .txt files (files will be ordered alphabetically)</p>
-            <div class="file-picker-list">
-                ${fileList}
-            </div>
-            <div class="modal-actions" style="margin-top: 1.5rem;">
-                <button onclick="confirmFileSelection()" class="btn-primary">Confirm Selection</button>
-                <button onclick="closeFilePickerModal()" class="btn-secondary">Cancel</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
+    const picker = new google.picker.PickerBuilder()
+        .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
+            .setMimeTypes('text/plain')
+            .setMode(google.picker.DocsViewMode.LIST))
+        .setOAuthToken(token)
+        .setDeveloperKey(GOOGLE_API_KEY)
+        .setCallback(pickerCallback)
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setTitle('Select Sermon Transcript Files (.txt)')
+        .build();
+    picker.setVisible(true);
 }
 
-// Confirm file selection from modal
-function confirmFileSelection() {
-    const checkboxes = document.querySelectorAll('#filePickerModal input[type="checkbox"]:checked');
+// Handle file selection from Google Picker
+function pickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+        selectedFiles = data.docs.map(doc => ({
+            id: doc.id,
+            name: doc.name
+        }));
 
-    if (checkboxes.length === 0) {
-        alert('Please select at least one file.');
-        return;
-    }
+        // Sort files alphabetically (handles "## 01, 02..." pattern)
+        selectedFiles.sort((a, b) => a.name.localeCompare(b.name));
 
-    if (checkboxes.length > 8) {
-        alert('Maximum 8 files allowed. Please deselect some files.');
-        return;
-    }
+        // Limit to 8 files
+        if (selectedFiles.length > 8) {
+            selectedFiles = selectedFiles.slice(0, 8);
+            alert('Maximum 8 files allowed. Only the first 8 alphabetically have been selected.');
+        }
 
-    selectedFiles = Array.from(checkboxes).map(cb => {
-        const fileIndex = parseInt(cb.value) ?
-            allDriveFiles.findIndex(f => f.id === cb.value) :
-            parseInt(cb.id.replace('file_', ''));
-        return allDriveFiles.find(f => f.id === cb.value) || allDriveFiles[fileIndex];
-    });
-
-    // Sort files alphabetically
-    selectedFiles.sort((a, b) => a.name.localeCompare(b.name));
-
-    updateSelectedFilesDisplay();
-    updateFileIdsInput();
-    toggleGenerateButton();
-    closeFilePickerModal();
-}
-
-// Close file picker modal
-function closeFilePickerModal() {
-    const modal = document.getElementById('filePickerModal');
-    if (modal) {
-        modal.remove();
+        updateSelectedFilesDisplay();
+        updateFileIdsInput();
+        toggleGenerateButton();
     }
 }
 

@@ -66,6 +66,26 @@ async def logout_route(request: Request):
     return await logout(request)
 
 
+@app.get("/api/access-token")
+async def get_access_token(request: Request, user: dict = Depends(get_current_user)):
+    """Get OAuth access token for Google Picker API"""
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        creds_data = request.session.get("credentials")
+        if not creds_data or not creds_data.get("token"):
+            raise HTTPException(status_code=401, detail="No access token found")
+
+        return JSONResponse({
+            "access_token": creds_data["token"]
+        })
+
+    except Exception as e:
+        print(f"Error getting access token: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/list-files")
 async def list_files(request: Request, user: dict = Depends(get_current_user)):
     """List all .txt files from user's Google Drive"""
