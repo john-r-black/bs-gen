@@ -136,7 +136,7 @@ async def generate_guide(
 
         # Save to Google Drive
         filename = f"{series_title}_Study_Guide.md"
-        folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        folder_id = os.getenv("STUDY_GUIDE_OUTPUT_FOLDER_ID")
 
         # If folder_id not set, save to root of Drive
         if not folder_id or folder_id == "None":
