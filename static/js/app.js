@@ -34,7 +34,10 @@ function showFileSelectionModal() {
         <div class="file-picker-item">
             <input type="checkbox" id="file_${index}" value="${file.id}"
                 ${selectedFiles.some(f => f.id === file.id) ? 'checked' : ''}>
-            <label for="file_${index}">${file.name}</label>
+            <label for="file_${index}">
+                <div class="file-name">${file.name}</div>
+                <div class="file-folder">${file.folderName || 'My Drive'}</div>
+            </label>
         </div>
     `).join('');
 

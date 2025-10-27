@@ -510,6 +510,18 @@ main {
     color: var(--text-primary);
 }
 
+.file-picker-item .file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.file-picker-item .file-folder {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-content {
