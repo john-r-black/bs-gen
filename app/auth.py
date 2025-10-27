@@ -77,6 +77,11 @@ async def oauth_callback(request: Request):
 
     token_data = flow.oauth2session.token
 
+    # Debug: Print token data keys
+    print(f"Token data keys: {token_data.keys()}")
+    print(f"Has refresh_token: {'refresh_token' in token_data}")
+    print(f"Access token exists: {bool(token_data.get('access_token'))}")
+
     # Calculate expiry time if expires_in is provided
     expiry = None
     if 'expires_in' in token_data:
@@ -84,12 +89,22 @@ async def oauth_callback(request: Request):
     elif 'expires_at' in token_data:
         expiry = datetime.utcfromtimestamp(token_data['expires_at'])
 
+    # Verify all required fields are present
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    access_token = token_data.get('access_token')
+    refresh_token = token_data.get('refresh_token')
+
+    if not all([client_id, client_secret, access_token]):
+        print(f"Missing fields - client_id: {bool(client_id)}, client_secret: {bool(client_secret)}, access_token: {bool(access_token)}, refresh_token: {bool(refresh_token)}")
+        raise HTTPException(status_code=500, detail="OAuth configuration incomplete")
+
     credentials = Credentials(
-        token=token_data.get('access_token'),
-        refresh_token=token_data.get('refresh_token'),
+        token=access_token,
+        refresh_token=refresh_token,
         token_uri='https://oauth2.googleapis.com/token',
-        client_id=os.getenv("GOOGLE_CLIENT_ID"),
-        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+        client_id=client_id,
+        client_secret=client_secret,
         scopes=token_data.get('scope', '').split() if isinstance(token_data.get('scope'), str) else SCOPES,
         expiry=expiry
     )
