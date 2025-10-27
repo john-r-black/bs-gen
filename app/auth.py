@@ -63,15 +63,25 @@ async def oauth_callback(request: Request):
     # Exchange authorization code for credentials
     flow = get_oauth_flow(request)
 
-    # Fetch token - ignore scope reordering warnings from oauthlib
+    # Fetch token - oauthlib raises a Warning exception about scope reordering
+    # But the token IS successfully fetched before the warning is raised
     try:
         flow.fetch_token(authorization_response=str(request.url))
-    except Warning:
-        # oauthlib raises scope mismatch as Warning exception
-        # This is safe to ignore as Google just reorders the scopes
-        pass
+    except Warning as w:
+        # Token was fetched successfully, just ignore scope order warning
+        if "Scope has changed" not in str(w):
+            raise  # Re-raise if it's a different warning
 
-    credentials = flow.credentials
+    # Build credentials manually from the token (since flow.credentials may fail after Warning)
+    token_data = flow.oauth2session.token
+    credentials = Credentials(
+        token=token_data.get('access_token'),
+        refresh_token=token_data.get('refresh_token'),
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=os.getenv("GOOGLE_CLIENT_ID"),
+        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+        scopes=SCOPES
+    )
 
     # Get user info
     service = build('oauth2', 'v2', credentials=credentials)
