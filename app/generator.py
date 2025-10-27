@@ -110,7 +110,11 @@ Generate the complete study guide now, with all {len(sermons)} sessions."""
 
 async def generate_with_anthropic(prompt: str, model: str) -> str:
     """Generate study guide using Anthropic Claude API"""
-    client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    # Set longer timeout for large study guide generation (10 minutes)
+    client = Anthropic(
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        timeout=600.0  # 10 minutes
+    )
 
     try:
         response = client.messages.create(
@@ -130,7 +134,11 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
 
 async def generate_with_openai(prompt: str, model: str) -> str:
     """Generate study guide using OpenAI GPT API"""
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # Set longer timeout for large study guide generation (10 minutes)
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        timeout=600.0  # 10 minutes
+    )
 
     try:
         response = client.chat.completions.create(
