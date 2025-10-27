@@ -39,13 +39,12 @@ async function createPicker() {
 
     const picker = new google.picker.PickerBuilder()
         .addView(new google.picker.DocsView(google.picker.ViewId.DOCS)
-            .setMimeTypes('text/plain')
             .setMode(google.picker.DocsViewMode.LIST))
         .setOAuthToken(token)
         .setDeveloperKey(GOOGLE_API_KEY)
         .setCallback(pickerCallback)
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-        .setTitle('Select Sermon Transcript Files (.txt)')
+        .setTitle('Select Sermon Transcript Files')
         .build();
     picker.setVisible(true);
 }

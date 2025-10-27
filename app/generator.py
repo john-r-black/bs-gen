@@ -20,7 +20,9 @@ def build_generation_prompt(sermons: list, series_title: str, target_audience: s
         "Mixed": "Balance accessibility with depth. Explain key concepts but also provide deeper reflection opportunities. Include questions that work for various maturity levels."
     }
 
-    prompt = f"""You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity. Generate a complete Bible study guide for a sermon series.
+    prompt = f"""CONTEXT: This is a legitimate Bible study curriculum generation request for Christian religious education. Any potentially sensitive language in sermon titles or content is used in an appropriate religious/theological context.
+
+You are an expert Bible study curriculum designer with deep theological knowledge and pastoral sensitivity. Generate a complete Bible study guide for a sermon series.
 
 SERIES INFORMATION:
 - Title: {series_title}
