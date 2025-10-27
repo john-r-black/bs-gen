@@ -1,4 +1,5 @@
 import os
+import logging
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +14,13 @@ from app.generator import generate_study_guide
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Bible Study Generator")
 
@@ -103,7 +111,7 @@ async def list_files(request: Request, user: dict = Depends(get_current_user)):
         })
 
     except Exception as e:
-        print(f"Error listing files: {str(e)}")
+        logger.error(f"Error listing files: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -138,6 +146,15 @@ async def generate_guide(
         for file_id in file_id_list:
             file_metadata = drive_service.files().get(fileId=file_id, fields="name").execute()
             file_content = read_file_from_drive(drive_service, file_id)
+
+            # Validate minimum word count (500 words minimum for quality content)
+            word_count = len(file_content.split())
+            if word_count < 500:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File '{file_metadata['name']}' is too short ({word_count} words). Minimum 500 words required for quality study guides."
+                )
+
             sermons.append({
                 "filename": file_metadata["name"],
                 "content": file_content
@@ -146,6 +163,8 @@ async def generate_guide(
         # Sort alphabetically by filename (handles "## 01, 02..." pattern)
         sermons.sort(key=lambda x: x["filename"])
 
+        logger.info(f"Starting study guide generation for '{series_title}' with {len(sermons)} sermons using {model}")
+
         # Generate study guide
         study_guide_content = await generate_study_guide(
             sermons=sermons,
@@ -153,6 +172,8 @@ async def generate_guide(
             target_audience=target_audience,
             model=model
         )
+
+        logger.info(f"Study guide generation completed for '{series_title}'")
 
         # Save to Google Drive
         filename = f"{series_title}_Study_Guide.md"
@@ -169,6 +190,8 @@ async def generate_guide(
             folder_id=folder_id
         )
 
+        logger.info(f"Study guide saved to Drive: {filename}")
+
         return JSONResponse({
             "success": True,
             "message": "Study guide generated successfully!",
@@ -178,7 +201,7 @@ async def generate_guide(
 
     except Exception as e:
         # Log error for debugging
-        print(f"Error generating study guide: {str(e)}")
+        logger.error(f"Error generating study guide: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

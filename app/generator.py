@@ -1,7 +1,15 @@
 import os
+import logging
 from datetime import datetime
 from anthropic import Anthropic
 from openai import OpenAI
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 def build_generation_prompt(sermons: list, series_title: str, target_audience: str) -> str:
@@ -131,10 +139,10 @@ async def generate_with_anthropic(prompt: str, model: str) -> str:
     except Exception as e:
         error_msg = str(e)
         # Log more details for debugging
-        print(f"Anthropic API Error Details:")
-        print(f"  Model: {model}")
-        print(f"  Error: {error_msg}")
-        print(f"  Prompt length: {len(prompt)} characters")
+        logger.error(f"Anthropic API Error Details:")
+        logger.error(f"  Model: {model}")
+        logger.error(f"  Error: {error_msg}")
+        logger.error(f"  Prompt length: {len(prompt)} characters")
         raise Exception(f"Anthropic API error: {error_msg}")
 
 
@@ -222,9 +230,10 @@ async def generate_study_guide(
 
             # If Anthropic fails with content filtering, try GPT-4o as fallback
             if provider == "anthropic" and "content filtering" in str(e).lower():
-                print(f"Anthropic content filtering detected, attempting GPT-4o fallback...")
+                logger.warning(f"Anthropic content filtering detected, attempting GPT-4o fallback...")
                 try:
                     content = await generate_with_openai(prompt, "gpt-4o")
+                    logger.info(f"GPT-4o fallback succeeded for series: {series_title}")
                     header = f"""# {series_title}
 **Bible Study Guide**
 
@@ -238,7 +247,7 @@ async def generate_study_guide(
 """
                     return header + content
                 except Exception as fallback_error:
-                    print(f"GPT-4o fallback also failed: {str(fallback_error)}")
+                    logger.error(f"GPT-4o fallback also failed: {str(fallback_error)}")
                     last_error = fallback_error
 
             if attempt > max_retries:
